@@ -39,6 +39,14 @@ export async function POST(request) {
     );
   }
 
+  const VALID_OPPONENT_TYPES = ["human", "bot", "solo"];
+  if (!VALID_OPPONENT_TYPES.includes(opponentType)) {
+    return NextResponse.json(
+      { error: "Invalid opponentType. Allowed: " + VALID_OPPONENT_TYPES.join(", ") },
+      { status: 400 }
+    );
+  }
+
   try {
     const pool = getPool();
     await pool.query(
@@ -48,7 +56,7 @@ export async function POST(request) {
         String(name).slice(0, 20),
         String(gameType).slice(0, 30),
         Math.round(score),
-        opponentType === "human" ? "human" : "bot",
+        opponentType,
       ]
     );
     return NextResponse.json({ ok: true });
