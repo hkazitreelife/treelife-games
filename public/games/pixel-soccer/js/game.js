@@ -159,7 +159,7 @@
       var myS=data.score[mpTeam], oppS=data.score[1-mpTeam];
       var pts=myS>oppS?100:myS===oppS?50:10;
       fetch("/api/scores",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({name:mpName,gameType:"soccer",score:pts,opponentType:"human"})}).catch(function(){});
+        body:JSON.stringify({name:mpName,gameType:"pixel-soccer",score:pts,opponentType:"human"})}).then(function(res){ if(!res.ok) throw new Error("Score save failed"); }).catch(function(){ console.warn("[scores] Score could not be saved"); });
     });
     mpSocket.on("game-restart", function (data) {
       var s=data.snapshot;

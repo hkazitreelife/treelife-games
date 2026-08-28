@@ -238,7 +238,12 @@ export default function ChessGame({
             score: isDraw ? 50 : iWin ? 100 : 10,
             opponentType: "human",
           }),
-        }).catch(() => {});
+        }).then(function (res) {
+          if (!res.ok) throw new Error("Score save failed");
+        }).catch(function () {
+          setMultiplayerError("Score could not be saved — leaderboard may be outdated.");
+          setTimeout(function () { setMultiplayerError(""); }, 4000);
+        });
       } catch {}
     };
 
