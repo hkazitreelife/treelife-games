@@ -73,8 +73,25 @@ export async function GET() {
   await ensureSchema();
   const pool = getPool();
   const { rows } = await pool.query(
-    `SELECT name, SUM(score) AS score
-     FROM treelife_scores
+    `WITH user_best AS (
+       SELECT name, game_id, MAX(score) AS best
+       FROM treelife_scores
+       GROUP BY name, game_id
+     ),
+     game_max AS (
+       SELECT game_id, MAX(score) AS max_score
+       FROM treelife_scores
+       GROUP BY game_id
+     ),
+     normalized AS (
+       SELECT ub.name, ub.game_id,
+         ROUND((ub.best::numeric / gm.max_score) * 100, 1) AS normalized_score
+       FROM user_best ub
+       JOIN game_max gm ON ub.game_id = gm.game_id
+       WHERE gm.max_score > 0
+     )
+     SELECT name, ROUND(SUM(normalized_score), 1) AS score
+     FROM normalized
      GROUP BY name
      ORDER BY score DESC
      LIMIT 10`
