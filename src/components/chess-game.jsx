@@ -34,6 +34,8 @@ export default function ChessGame({
   const [showLanding, setShowLanding] = useState(!multiplayerMode);
   const [joinCode, setJoinCode] = useState("");
   const [opponentDisconnected, setOpponentDisconnected] = useState(false);
+  const [disconnectSecondsLeft, setDisconnectSecondsLeft] = useState(0);
+  const disconnectIntervalRef = useRef(null);
   const [multiplayerPlayers, setMultiplayerPlayers] = useState(
     () => (gameReadyData?.players) || []
   );
@@ -247,8 +249,40 @@ export default function ChessGame({
       } catch {}
     };
 
-    const onOpponentDisconnected = () => setOpponentDisconnected(true);
-    const onOpponentReconnected = () => setOpponentDisconnected(false);
+    const onOpponentDisconnected = () => {
+      setOpponentDisconnected(true);
+      setDisconnectSecondsLeft(60);
+      disconnectIntervalRef.current = setInterval(() => {
+        setDisconnectSecondsLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(disconnectIntervalRef.current);
+            disconnectIntervalRef.current = null;
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    };
+    const onOpponentReconnected = () => {
+      if (disconnectIntervalRef.current) {
+        clearInterval(disconnectIntervalRef.current);
+        disconnectIntervalRef.current = null;
+      }
+      setOpponentDisconnected(false);
+      setDisconnectSecondsLeft(0);
+    };
+    const onMatchAbandoned = (data) => {
+      if (disconnectIntervalRef.current) {
+        clearInterval(disconnectIntervalRef.current);
+        disconnectIntervalRef.current = null;
+      }
+      setOpponentDisconnected(false);
+      setDisconnectSecondsLeft(0);
+      setGameOver(true);
+      setStatus("Match abandoned — opponent disconnected");
+      setTimerActive(false);
+      setMultiplayerGameOverMsg({ winner: null, reason: data?.reason || "Opponent disconnected for too long" });
+    };
     const onRoomExpired = () => {
       setGameOver(true);
       setStatus("Room expired");
@@ -261,6 +295,7 @@ export default function ChessGame({
     s.on("game-over", onGameOver);
     s.on("opponent-disconnected", onOpponentDisconnected);
     s.on("opponent-reconnected", onOpponentReconnected);
+    s.on("match-abandoned", onMatchAbandoned);
     s.on("room-expired", onRoomExpired);
 
     return () => {
@@ -270,9 +305,14 @@ export default function ChessGame({
       s.off("game-over", onGameOver);
       s.off("opponent-disconnected", onOpponentDisconnected);
       s.off("opponent-reconnected", onOpponentReconnected);
+      s.off("match-abandoned", onMatchAbandoned);
       s.off("room-expired", onRoomExpired);
     };
   }, [multiplayerMode, multiplayerSocket, playerName]);
+
+  useEffect(() => () => {
+    if (disconnectIntervalRef.current) clearInterval(disconnectIntervalRef.current);
+  }, []);
 
   useEffect(
     () => () => {
@@ -643,7 +683,9 @@ export default function ChessGame({
       {opponentDisconnected && (
         <div className="chess-panel p-3 text-center" style={{ borderColor: "var(--px-red)", marginBottom: 8 }}>
           <span className="chess-status-row" style={{ color: "var(--px-red)" }}>
-            ⚠ OPPONENT DISCONNECTED — WAITING FOR RECONNECT...
+            ⚠ OPPONENT DISCONNECTED — WAITING FOR RECONNECT...{disconnectSecondsLeft > 0 && (
+              <span style={{ marginLeft: 8 }}>({disconnectSecondsLeft}s)</span>
+            )}
           </span>
         </div>
       )}

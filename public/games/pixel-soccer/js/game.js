@@ -110,6 +110,8 @@
   var mpName = "";
   var mpSendTimer = 0;
   var mpSendInterval = 1 / 20;  // 20Hz send rate
+  var mpDisconnectTimer = null;  // countdown interval
+  var mpDisconnectSeconds = 0;   // seconds remaining
 
   /* ── arcade-bot protocol ────────────────────────────────────── */
   window.addEventListener("message", function (e) {
@@ -169,7 +171,49 @@
       score[0]=s.score[0];score[1]=s.score[1];timeLeft=s.timeLeft;state=s.state;goalScorer=s.goalScorer;
       hideEl("fulltime");
     });
-    mpSocket.on("opponent-disconnected", function () {});
+    mpSocket.on("opponent-disconnected", function () {
+      mpDisconnectSeconds = 60;
+      showEl("disconnect");
+      var dcEl = document.getElementById("dc-countdown");
+      if (dcEl) dcEl.textContent = "Reconnecting in " + mpDisconnectSeconds + "s...";
+      mpDisconnectTimer = setInterval(function () {
+        mpDisconnectSeconds--;
+        if (dcEl) dcEl.textContent = "Reconnecting in " + mpDisconnectSeconds + "s...";
+        if (mpDisconnectSeconds <= 0) {
+          clearInterval(mpDisconnectTimer);
+          mpDisconnectTimer = null;
+          hideEl("disconnect");
+          state = "fulltime"; stateTimer = 500;
+          var title = document.getElementById("ft-title");
+          var scoreEl = document.getElementById("ft-score");
+          title.textContent = "MATCH ABANDONED";
+          scoreEl.textContent = "Opponent disconnected";
+          showEl("fulltime");
+        }
+      }, 1000);
+    });
+    mpSocket.on("opponent-reconnected", function () {
+      if (mpDisconnectTimer) {
+        clearInterval(mpDisconnectTimer);
+        mpDisconnectTimer = null;
+      }
+      mpDisconnectSeconds = 0;
+      hideEl("disconnect");
+    });
+    mpSocket.on("match-abandoned", function (data) {
+      if (mpDisconnectTimer) {
+        clearInterval(mpDisconnectTimer);
+        mpDisconnectTimer = null;
+      }
+      mpDisconnectSeconds = 0;
+      hideEl("disconnect");
+      state = "fulltime"; stateTimer = 500;
+      var title = document.getElementById("ft-title");
+      var scoreEl = document.getElementById("ft-score");
+      title.textContent = "MATCH ABANDONED";
+      scoreEl.textContent = (data && data.reason) || "Opponent disconnected for too long";
+      showEl("fulltime");
+    });
     mpSocket.on("room-expired", function () { state="menu"; showEl("menu"); });
   })();
 
@@ -225,6 +269,12 @@
     }
   });
   document.getElementById("btn-rematch").addEventListener("click", function () { startMatch(cpuMode); });
+  document.getElementById("btn-dc-menu").addEventListener("click", function () {
+    if (mpDisconnectTimer) { clearInterval(mpDisconnectTimer); mpDisconnectTimer = null; }
+    mpDisconnectSeconds = 0;
+    hideEl("disconnect");
+    state = "menu"; showEl("menu");
+  });
   document.getElementById("btn-menu").addEventListener("click", function () {
     state = "menu"; showEl("menu"); hideEl("fulltime");
   });
@@ -414,6 +464,16 @@
       else if (score[1] > score[0]) title.textContent = "BLUE WINS!";
       else                          title.textContent = "DRAW!";
       scoreEl.textContent = score[0] + " - " + score[1];
+      /* Submit VS BOT score to leaderboard */
+      if (!multiplayerMode) {
+        var myS = score[0], oppS = score[1];
+        var pts = myS > oppS ? 100 : myS === oppS ? 50 : 10;
+        var botName = (typeof localStorage !== "undefined" && localStorage.getItem("treelife-name")) || "PLAYER";
+        fetch("/api/scores", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: botName, gameType: "pixel-soccer", score: pts, opponentType: "bot" })
+        }).then(function(res){ if(!res.ok) throw new Error("Score save failed"); })
+          .catch(function(){ console.warn("[scores] Bot score could not be saved"); });
+      }
       return;
     }
 

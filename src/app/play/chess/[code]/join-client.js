@@ -51,6 +51,12 @@ export default function ChessJoinClient({ code }) {
       setPhase("game");
     });
 
+    s.on("match-abandoned", (data) => {
+      setPhase("error");
+      setErrorMsg(data?.reason || "Match abandoned — opponent disconnected.");
+      s.disconnect();
+    });
+
     s.on("connect_error", () => {
       setPhase("error");
       setErrorMsg("Could not connect to server.");

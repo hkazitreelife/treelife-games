@@ -60,6 +60,7 @@ export default function Home() {
     if (!raw) { setLoginError("TYPE SOMETHING FIRST"); return; }
     const finalName = dedupeName(raw, board);
     setUserName(finalName);
+    try { localStorage.setItem("treelife-name", finalName); } catch (_e) {}
   };
 
   // Keep a mirror of botActive so reload callbacks can read the latest value.

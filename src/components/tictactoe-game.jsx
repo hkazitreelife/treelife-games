@@ -131,6 +131,8 @@ export default function TictactoeGame({
   const [pendingMove, setPendingMove] = useState(false);
   const [multiplayerError, setMultiplayerError] = useState("");
   const [opponentDisconnected, setOpponentDisconnected] = useState(false);
+  const [disconnectSecondsLeft, setDisconnectSecondsLeft] = useState(0);
+  const disconnectIntervalRef = useRef(null);
   const [multiplayerPlayers, setMultiplayerPlayers] = useState(
     () => (gameReadyData?.players) || []
   );
@@ -240,13 +242,46 @@ export default function TictactoeGame({
       } catch {}
     };
 
-    const onOpponentDisconnected = () => setOpponentDisconnected(true);
-    const onOpponentReconnected = () => setOpponentDisconnected(false);
+    const onOpponentDisconnected = () => {
+      setOpponentDisconnected(true);
+      setDisconnectSecondsLeft(60);
+      disconnectIntervalRef.current = setInterval(() => {
+        setDisconnectSecondsLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(disconnectIntervalRef.current);
+            disconnectIntervalRef.current = null;
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    };
+    const onOpponentReconnected = () => {
+      if (disconnectIntervalRef.current) {
+        clearInterval(disconnectIntervalRef.current);
+        disconnectIntervalRef.current = null;
+      }
+      setOpponentDisconnected(false);
+      setDisconnectSecondsLeft(0);
+    };
+    const onMatchAbandoned = (data) => {
+      if (disconnectIntervalRef.current) {
+        clearInterval(disconnectIntervalRef.current);
+        disconnectIntervalRef.current = null;
+      }
+      setOpponentDisconnected(false);
+      setDisconnectSecondsLeft(0);
+      setGameOver(true);
+      setOverlayTitle("MATCH ABANDONED");
+      setOverlaySub(data?.reason || "Opponent disconnected for too long");
+      setShowOverlay(true);
+    };
 
     s.on("game-ready", onGameReady);
     s.on("move_confirmed", onMoveConfirmed);
     s.on("move-rejected", onMoveRejected);
     s.on("game-over", onGameOver);
+    s.on("match-abandoned", onMatchAbandoned);
     s.on("opponent-disconnected", onOpponentDisconnected);
     s.on("opponent-reconnected", onOpponentReconnected);
 
@@ -255,10 +290,15 @@ export default function TictactoeGame({
       s.off("move_confirmed", onMoveConfirmed);
       s.off("move-rejected", onMoveRejected);
       s.off("game-over", onGameOver);
+      s.off("match-abandoned", onMatchAbandoned);
       s.off("opponent-disconnected", onOpponentDisconnected);
       s.off("opponent-reconnected", onOpponentReconnected);
     };
   }, [multiplayerMode, multiplayerSocket, playerName]);
+
+  useEffect(() => () => {
+    if (disconnectIntervalRef.current) clearInterval(disconnectIntervalRef.current);
+  }, []);
 
   /* ── Timer ── */
   const armTimer = useCallback(() => {

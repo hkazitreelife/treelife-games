@@ -204,6 +204,11 @@ function wireEvents(io) {
         // Notify opponent
         const other = room.players.find((p) => p.id !== socket.id);
         if (other) io.to(other.id).emit("opponent-reconnected");
+        // Clear disconnect timeout if it was running
+        if (room._disconnectTimeout) {
+          clearTimeout(room._disconnectTimeout);
+          room._disconnectTimeout = null;
+        }
         room.lastActivity = Date.now();
         return;
       }
@@ -436,6 +441,18 @@ function wireEvents(io) {
           const other = room.players.find((p) => p.id !== socket.id);
           if (other) {
             io.to(other.id).emit("opponent-disconnected");
+            // Start 60s reconnect timeout
+            room._disconnectTimeout = setTimeout(() => {
+              io.to(other.id).emit("match-abandoned", {
+                reason: "Opponent disconnected for too long",
+              });
+              // Stop soccer tick if running
+              if (room.soccerState && room.soccerState._tickInterval) {
+                clearInterval(room.soccerState._tickInterval);
+                room.soccerState._tickInterval = null;
+              }
+              rooms.delete(code);
+            }, 60_000);
           }
           break;
         }
