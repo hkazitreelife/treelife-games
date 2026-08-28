@@ -249,6 +249,22 @@
 			<a class="sound" href="javascript:void(0);" data-sound="on"><img src="img/sound-on.png" alt="" border="0"></a>
 		</div>
 	
-	</body>
+	
+<script>
+// Score submission for Treelife Arcade leaderboard.
+// Hooks the global gameover() function to capture SCORE before it resets.
+// FRAGILE: depends on gameover() being a global function in js/game.js.
+// Will break if Pac-Man source is refactored to use modules or rename this function.
+(function() {
+  var _origGameover = window.gameover;
+  if (typeof _origGameover !== "function") return;
+  window.gameover = function() {
+    var score = (typeof SCORE !== "undefined") ? SCORE : 0;
+    try { window.parent.postMessage({ type: "arcade-score", game: "pacman", score: score }, "*"); } catch (_) {}
+    return _origGameover.apply(this, arguments);
+  };
+})();
+</script>
+</body>
 	
 </html>

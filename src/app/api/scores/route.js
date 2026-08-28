@@ -22,7 +22,7 @@ export async function POST(request) {
   }
 
   const VALID_GAME_TYPES = [
-    "2048", "chess", "flappy-bird", "tetris", "pacman",
+    "2048", "chess", "flappy", "tetris", "pacman",
     "sokoban", "jumpquest", "pixel-soccer", "survivor", "tictactoe",
   ];
   if (!VALID_GAME_TYPES.includes(gameType)) {
@@ -32,9 +32,9 @@ export async function POST(request) {
     );
   }
 
-  if (typeof score !== "number" || score < 0 || score > 100 || !Number.isFinite(score)) {
+  if (typeof score !== "number" || score < 0 || !Number.isFinite(score)) {
     return NextResponse.json(
-      { error: "Score must be a number between 0 and 100." },
+      { error: "Score must be a non-negative number." },
       { status: 400 }
     );
   }

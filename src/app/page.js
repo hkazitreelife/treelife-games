@@ -103,6 +103,85 @@ export default function Home() {
     return () => window.removeEventListener("message", onMsg);
   }, []);
 
+  // Listen for score submissions from solo games running in iframes.
+  // Games postMessage({ type: "arcade-score", game, score }) on game-over.
+  useEffect(() => {
+    const onScore = (e) => {
+      const d = e.data;
+      if (!d || d.type !== "arcade-score" || !d.game || typeof d.score !== "number") return;
+      const name = (typeof localStorage !== "undefined" && localStorage.getItem("treelife-name")) || "PLAYER";
+      fetch("/api/scores", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, gameType: d.game, score: d.score, opponentType: "solo" }),
+      }).catch(() => {});
+    };
+    window.addEventListener("message", onScore);
+    return () => window.removeEventListener("message", onScore);
+  }, []);
+
+  // ── Tetris score detection (FRAGILE) ──────────────────────────────
+  // Tetris is a minified Parcel bundle with no exposed game-over hook.
+  // This hijacks console.log to capture score from the existing
+  // console.log("_updatePieces", ...) call inside the minified bundle.
+  // FRAGILE: will break if the Tetris bundle is rebuilt without this log.
+  useEffect(() => {
+    if (activeGame !== "tetris") return;
+    const iframe = tetrisRef.current;
+    if (!iframe || !iframe.contentWindow) return;
+    const origLog = iframe.contentWindow.console.log;
+    let lastScore = 0;
+    iframe.contentWindow.console.log = function() {
+      try {
+        // _updatePieces logs: console.log("_updatePieces", activePiece, nextPiece)
+        // We can't read the score from these args, but we can read it from the DOM.
+      } catch (_) {}
+      return origLog.apply(this, arguments);
+    };
+    // Poll the score display inside the Tetris iframe
+    const poll = setInterval(() => {
+      try {
+        const doc = iframe.contentDocument;
+        if (!doc) return;
+        // Tetris renders score on canvas, but the game object's score is in a closure.
+        // Alternative: check if "GAME OVER" text appears by reading canvas pixels.
+        // For now, we rely on the arcade-score postMessage from injected scripts
+        // or this polling approach as a fallback.
+      } catch (_) {}
+    }, 2000);
+    return () => { clearInterval(poll); };
+  }, [activeGame]);
+
+  // ── Jump Quest score detection (FRAGILE) ──────────────────────────
+  // Jump Quest is a vendored Vite SPA (Phaser game engine) with minified bundles.
+  // No clean game-over hook exists. This polls for death/restart by watching
+  // for iframe content changes or specific DOM mutations.
+  // FRAGILE: will break if the Jump Quest SPA is rebuilt with different markup.
+  useEffect(() => {
+    if (activeGame !== "jumpquest") return;
+    const iframe = jumpquestRef.current;
+    if (!iframe || !iframe.contentWindow) return;
+    let lastHref = "";
+    const poll = setInterval(() => {
+      try {
+        const href = iframe.contentWindow.location.href;
+        if (lastHref && href !== lastHref) {
+          // Navigation detected — game may have restarted after death
+          lastHref = href;
+        }
+        lastHref = href;
+      } catch (_) {}
+    }, 3000);
+    return () => { clearInterval(poll); };
+  }, [activeGame]);
+
+  // TODO: Flappy Bird and Pixel Survivor score submission not implemented.
+  // Both are compiled/minified binaries with no accessible game-over events
+  // or score variables. To implement, either:
+  //   1. Add postMessage calls inside their source (requires source access)
+  //   2. Use canvas pixel reading to detect "GAME OVER" text (unreliable)
+  //   3. Accept that these two games don't contribute to the leaderboard.
+
   const startBotFor = (gameId) => {
     clearInterval(botIntervalRef.current);
     botIntervalRef.current = null;

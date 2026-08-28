@@ -83,5 +83,28 @@
   <script src="js/local_storage_manager.js"></script>
   <script src="js/game_manager.js"></script>
   <script src="js/application.js"></script>
+
+<script>
+// Score submission for Treelife Arcade leaderboard.
+// Detects game-over via the .game-message element getting the "game-over" class.
+(function() {
+  var sent = false;
+  var observer = new MutationObserver(function() {
+    var msg = document.querySelector(".game-message");
+    if (msg && msg.classList.contains("game-over") && !sent) {
+      sent = true;
+      var scoreEl = document.querySelector(".score-container");
+      var score = scoreEl ? parseInt(scoreEl.textContent, 10) || 0 : 0;
+      try { window.parent.postMessage({ type: "arcade-score", game: "2048", score: score }, "*"); } catch (_) {}
+    }
+    if (msg && !msg.classList.contains("game-over")) sent = false;
+  });
+  var target = document.querySelector(".game-container");
+  if (target) observer.observe(target, { attributes: true, subtree: true, attributeFilter: ["class"] });
+  // Also watch the retry button to reset the sent flag
+  var retry = document.querySelector(".retry-button");
+  if (retry) retry.addEventListener("click", function() { sent = false; });
+})();
+</script>
 </body>
 </html>

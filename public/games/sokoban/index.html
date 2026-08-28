@@ -145,5 +145,30 @@
     </div>
     <footer></footer>
     <script type="module" src="js/main.js"></script>
-  </body>
+  
+<script>
+// Score submission for Treelife Arcade leaderboard.
+// Observes #win-dialog visibility — it appears on level complete (state == 'complete').
+// Sokoban has no numeric score; awards 10 points per level completed.
+// Clean hook: #win-dialog and its display toggling is stable across sokoban versions.
+(function() {
+  var sent = false;
+  var observer = new MutationObserver(function() {
+    var dlg = document.getElementById("win-dialog");
+    if (!dlg) return;
+    var visible = dlg.style.display === "flex" || dlg.style.display === "";
+    if (visible && dlg.offsetWidth > 0 && !sent) {
+      sent = true;
+      try { window.parent.postMessage({ type: "arcade-score", game: "sokoban", score: 10 }, "*"); } catch (_) {}
+    }
+    if (!visible || dlg.offsetWidth === 0) sent = false;
+  });
+  var target = document.getElementById("win-dialog");
+  if (target) observer.observe(target, { attributes: true, attributeFilter: ["style"] });
+  // Also observe for the finishedGame congratulations message
+  var container = document.getElementById("canvas-container");
+  if (container) observer.observe(container, { childList: true, subtree: true });
+})();
+</script>
+</body>
 </html>
