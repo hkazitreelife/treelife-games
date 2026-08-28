@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Infinite Tic-Tac-Toe</title>
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap");
+
+  :root {
+    --px-bg: #0f0f1b;
+    --px-green: #38b764;
+    --px-gold: #f4b41b;
+    --px-red: #e43b44;
+    --px-text: #f4f4f4;
+    --px-x: #38b764;
+    --px-o: #f4b41b;
+    --font-pixel: "Press Start 2P", monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--px-bg);
+    color: var(--px-text);
+    font-family: var(--font-pixel);
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .wrap {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 12px;
+    user-select: none;
+  }
+
+  /* ── Status bar ── */
+  .statusbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: min(92vw, 420px);
+    font-size: 10px;
+    line-height: 1.6;
+  }
+  .score { display: flex; gap: 14px; font-size: 9px; }
+  .score .sx { color: var(--px-x); }
+  .score .so { color: var(--px-o); }
+  .turn { text-align: right; }
+  .turn .who-x { color: var(--px-x); }
+  .turn .who-o { color: var(--px-o); }
+
+  /* ── Timer ── */
+  .timer-track {
+    width: min(92vw, 420px);
+    height: 8px;
+    border: 2px solid var(--px-green);
+    background: #000;
+  }
+  .timer-fill {
+    height: 100%;
+    background: var(--px-green);
+    transition: width 0.1s linear;
+  }
+  .timer-fill.warn { background: var(--px-gold); }
+  .timer-fill.danger { background: var(--px-red); }
+
+  /* ── Board ── */
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    width: min(92vw, 420px);
+    aspect-ratio: 1 / 1;
+    border: 3px solid var(--px-green);
+    background: #000;
+  }
+  .cell {
+    position: relative;
+    border: 1px solid #1a1a2e;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(32px, 12vw, 56px);
+    line-height: 1;
+  }
+  .cell:hover { background: rgba(56, 183, 100, 0.08); }
+  .cell .mark-x { color: var(--px-x); }
+  .cell .mark-o { color: var(--px-o); }
+  /* oldest mark about to vanish */
+  .cell.fading { opacity: 0.35; }
+  /* winning line */
+  .cell.win { background: rgba(244, 180, 27, 0.18); animation: pop 0.4s steps(2) infinite alternate; }
+  @keyframes pop { from { filter: brightness(1); } to { filter: brightness(1.5); } }
+
+  /* ── Hint line ── */
+  .hint {
+    font-size: 8px;
+    color: var(--px-green);
+    opacity: 0.7;
+    text-align: center;
+    line-height: 1.8;
+    width: min(92vw, 420px);
+    min-height: 28px;
+  }
+
+  /* ── Overlay ── */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.85);
+  }
+  .overlay.show { display: flex; }
+  .panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 28px 32px;
+    border: 3px solid var(--px-green);
+    background: var(--px-bg);
+    text-align: center;
+  }
+  .panel-title { font-size: 16px; color: var(--px-gold); line-height: 1.6; }
+  .panel-sub { font-size: 10px; color: var(--px-text); line-height: 1.8; }
+  .btn {
+    font-family: var(--font-pixel);
+    font-size: 11px;
+    color: var(--px-bg);
+    background: var(--px-green);
+    border: none;
+    cursor: pointer;
+    padding: 12px 20px;
+  }
+  .btn:hover { background: var(--px-gold); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="statusbar">
+    <div class="score"><span class="sx">X <span id="scoreX">0</span></span><span class="so">O <span id="scoreO">0</span></span></div>
+    <div class="turn" id="turnLabel"></div>
+  </div>
+
+  <div class="timer-track"><div class="timer-fill" id="timerFill"></div></div>
+
+  <div class="board" id="board"></div>
+
+  <div class="hint" id="hint">MAX 3 MARKS EACH &mdash; A 4TH REMOVES YOUR OLDEST<br>GET YOUR 3 IN A ROW TO WIN!</div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="panel">
+    <div class="panel-title" id="ovTitle"></div>
+    <div class="panel-sub" id="ovSub"></div>
+    <button class="btn" id="nextBtn">NEXT ROUND</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var LINES = [
+    [0,1,2],[3,4,5],[6,7,8], // rows
+    [0,3,6],[1,4,7],[2,5,8], // cols
+    [0,4,8],[2,4,6]          // diagonals
+  ];
+  var TURN_MS = 10000;
+
+  var boardEl = document.getElementById("board");
+  var turnLabel = document.getElementById("turnLabel");
+  var timerFill = document.getElementById("timerFill");
+  var hintEl = document.getElementById("hint");
+  var overlay = document.getElementById("overlay");
+  var ovTitle = document.getElementById("ovTitle");
+  var ovSub = document.getElementById("ovSub");
+  var nextBtn = document.getElementById("nextBtn");
+  var scoreXEl = document.getElementById("scoreX");
+  var scoreOEl = document.getElementById("scoreO");
+
+  // ── Arcade bot (O) — toggled from the arcade panel via postMessage ──
+  var BOT = "O", HUMAN = "X";
+  var WIN_SCORE = 10000, SEARCH_DEPTH = 6, BOT_DELAY_MS = 500;
+  var botEnabled = false;
+  var botTimerId = null;
+
+  window.addEventListener("message", function (e) {
+    var d = e.data;
+    if (!d || d.type !== "arcade-bot") return;
+    botEnabled = !!d.on;
+    if (!botEnabled && botTimerId) { clearTimeout(botTimerId); botTimerId = null; }
+    try { window.parent.postMessage({ type: "arcade-bot-ack" }, "*"); } catch (err) {}
+    if (botEnabled) maybeBotMove();
+  });
+  // Tell the arcade panel this game is live, so a bot toggle sent before the
+  // iframe finished loading can be re-delivered instead of lost.
+  try { window.parent.postMessage({ type: "arcade-bot-ready", game: "tictactoe" }, "*"); } catch (err) {}
+
+  function cloneState(grid, mx, mo) {
+    return { g: grid.slice(), X: mx.slice(), O: mo.slice() };
+  }
+
+  // Apply a placement under the sliding rule: a 4th mark removes the oldest.
+  function applyMove(st, p, idx) {
+    st.g[idx] = p;
+    var q = st[p];
+    q.unshift(idx);
+    var removed = -1;
+    if (q.length > 3) {
+      removed = q.pop();
+      st.g[removed] = null;
+    }
+    return removed;
+  }
+
+  function winnerOf(st) {
+    for (var i = 0; i < LINES.length; i++) {
+      var l = LINES[i];
+      var v = st.g[l[0]];
+      if (v && st.g[l[1]] === v && st.g[l[2]] === v) return v;
+    }
+    return null;
+  }
+
+  function emptyCells(g) {
+    var out = [];
+    for (var i = 0; i < 9; i++) if (!g[i]) out.push(i);
+    return out;
+  }
+
+  // Static eval from O's (bot's) perspective over active marks only.
+  function heuristic(st) {
+    var s = 0;
+    for (var i = 0; i < LINES.length; i++) {
+      var l = LINES[i], a = 0, b = 0;
+      for (var j = 0; j < 3; j++) {
+        var v = st.g[l[j]];
+        if (v === BOT) a++; else if (v === HUMAN) b++;
+      }
+      if (a && b) continue; // blocked line
+      if (a === 2) s += 12; else if (a === 1) s += 2;
+      if (b === 2) s -= 14; else if (b === 1) s -= 2;
+    }
+    return s;
+  }
+
+  function search(st, p, depth, alpha, beta) {
+    var moves = emptyCells(st.g);
+    if (depth === 0 || moves.length === 0) return heuristic(st);
+    var maximizing = p === BOT;
+    var best = maximizing ? -Infinity : Infinity;
+    for (var i = 0; i < moves.length; i++) {
+      var next = cloneState(st.g, st.X, st.O);
+      applyMove(next, p, moves[i]);
+      var w = winnerOf(next);
+      var sc = w
+        ? (w === BOT ? WIN_SCORE - depth : -(WIN_SCORE - depth))
+        : search(next, other(p), depth - 1, alpha, beta);
+      if (maximizing) {
+        if (sc > best) best = sc;
+        if (best > alpha) alpha = best;
+      } else {
+        if (sc < best) best = sc;
+        if (best < beta) beta = best;
+      }
+      if (beta <= alpha) break;
+    }
+    return best;
+  }
+
+  function botPickMove() {
+    var st = cloneState(grid, marks.X, marks.O);
+    var moves = emptyCells(st.g);
+    if (!moves.length) return -1;
+    var bestIdx = moves[0], bestScore = -Infinity;
+    for (var i = 0; i < moves.length; i++) {
+      var next = cloneState(st.g, st.X, st.O);
+      applyMove(next, BOT, moves[i]);
+      var w = winnerOf(next);
+      var sc = w ? WIN_SCORE : search(next, HUMAN, SEARCH_DEPTH, -Infinity, Infinity);
+      // tiny jitter so identical-value replies vary between rounds
+      sc += Math.random() * 0.5;
+      if (sc > bestScore) { bestScore = sc; bestIdx = moves[i]; }
+    }
+    return bestIdx;
+  }
+
+  function maybeBotMove() {
+    if (!botEnabled || roundOver || current !== BOT || botTimerId) return;
+    botTimerId = setTimeout(function () {
+      botTimerId = null;
+      if (!botEnabled || roundOver || current !== BOT) return;
+      var idx = botPickMove();
+      if (idx >= 0) place(idx, true); // byBot: the bot's own placement must not hit the human guard
+    }, BOT_DELAY_MS);
+  }
+
+  var cells = [];
+  for (var i = 0; i < 9; i++) {
+    (function (idx) {
+      var c = document.createElement("div");
+      c.className = "cell";
+      c.addEventListener("click", function () { place(idx); });
+      boardEl.appendChild(c);
+      cells.push(c);
+    })(i);
+  }
+
+  // round state
+  var grid,            // array of "X" | "O" | null
+      marks,           // { X: [newest..oldest indices], O: [...] }
+      current,         // "X" | "O"
+      roundOver,
+      score = { X: 0, O: 0 },
+      starter = "X",
+      deadline = 0,
+      tickId = null;
+
+  function startRound() {
+    grid = [null,null,null,null,null,null,null,null,null];
+    marks = { X: [], O: [] };
+    current = starter;
+    roundOver = false;
+    overlay.classList.remove("show");
+    hintEl.style.visibility = "visible";
+    hintEl.innerHTML = botEnabled
+      ? "YOU ARE X &mdash; 🤖 BOT PLAYS O<br>MAX 3 MARKS EACH &mdash; A 4TH REMOVES YOUR OLDEST"
+      : "MAX 3 MARKS EACH &mdash; A 4TH REMOVES YOUR OLDEST<br>GET YOUR 3 IN A ROW TO WIN!";
+    render();
+    armTimer();
+    maybeBotMove();
+  }
+
+  function other(p) { return p === "X" ? "O" : "X"; }
+
+  function armTimer() {
+    clearInterval(tickId);
+    deadline = Date.now() + TURN_MS;
+    tickId = setInterval(updateTimer, 100);
+    updateTimer();
+  }
+
+  function updateTimer() {
+    if (roundOver) return;
+    var left = Math.max(0, deadline - Date.now());
+    var pct = (left / TURN_MS) * 100;
+    timerFill.style.width = pct + "%";
+    timerFill.className = "timer-fill" +
+      (pct <= 20 ? " danger" : pct <= 45 ? " warn" : "");
+    if (left === 0) forfeit();
+  }
+
+  function forfeit() {
+    if (roundOver) return;
+    clearInterval(tickId);
+    var loser = current;
+    endRound(other(loser), loser + " RAN OUT OF TIME!");
+  }
+
+  function place(idx, byBot) {
+    if (roundOver || grid[idx]) return;
+    if (byBot !== true && botEnabled && current === BOT) return; // humans may not move for the bot
+    clearInterval(tickId);
+
+    grid[idx] = current;
+
+    // enforce the 3-active-mark rule: remove this player's oldest mark
+    var mine = marks[current];
+    mine.unshift(idx);
+    if (mine.length > 3) {
+      var oldest = mine.pop();
+      grid[oldest] = null;
+    }
+    // win check uses only active marks (all of them are active now)
+    var wonLine = null;
+    for (var i = 0; i < LINES.length; i++) {
+      var l = LINES[i];
+      if (grid[l[0]] === current && grid[l[1]] === current && grid[l[2]] === current) {
+        wonLine = l;
+        break;
+      }
+    }
+    if (wonLine) {
+      render(wonLine);
+      endRound(current, current + " CONNECTS THREE!");
+      return;
+    }
+
+    current = other(current);
+    render();
+    armTimer();
+    maybeBotMove();
+  }
+
+  function render(winLine) {
+    for (var i = 0; i < 9; i++) {
+      var v = grid[i];
+      var cell = cells[i];
+      cell.innerHTML = v ? '<span class="' + (v === "X" ? "mark-x" : "mark-o") + '">' + v + "</span>" : "";
+      cell.classList.toggle("win", !!(winLine && winLine.indexOf(i) !== -1));
+      // highlight the mark that will vanish on this player's next placement
+      var mine = marks[current];
+      cell.classList.toggle("fading", !roundOver && !!v && mine.length === 3 && mine[2] === i);
+    }
+    scoreXEl.textContent = score.X;
+    scoreOEl.textContent = score.O;
+    turnLabel.innerHTML = 'TURN <span class="' + (current === "X" ? "who-x" : "who-o") + '">' + current + "</span>";
+  }
+
+  function endRound(winner, reason) {
+    roundOver = true;
+    clearInterval(tickId);
+    timerFill.style.width = "100%";
+    score[winner]++;
+    scoreXEl.textContent = score.X;
+    scoreOEl.textContent = score.O;
+    ovTitle.textContent = winner + " WINS THE ROUND!";
+    ovSub.textContent = reason + " SCORE X " + score.X + " - O " + score.O;
+    hintEl.style.visibility = "hidden";
+    overlay.classList.add("show");
+    starter = other(starter); // alternate who starts each round
+  }
+
+  nextBtn.addEventListener("click", startRound);
+
+  startRound();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pixel Sprite Walker</title>
+    <script>
+      // Pixel Survivor: player-chosen character name, persisted across sessions.
+      window.survivorPlayerName = function () {
+        try { return (localStorage.getItem("survivor-player-name") || "").trim(); }
+        catch (e) { return ""; }
+      };
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Google Fonts directly in HTML instead of CSS @import -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <script type="module" crossorigin src="./assets/index-n3Oq3ltM.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-CmEnBTat.css">
+  </head>
+  <body class="bg-zinc-900 text-zinc-100 antialiased">
+    <div id="root"></div>
+
+    <script>
+      // Touch-to-keyboard translation for mobile
+      (function() {
+        var touchStartX = 0, touchStartY = 0;
+        document.addEventListener('touchstart', function(e) {
+          touchStartX = e.touches[0].clientX;
+          touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+        document.addEventListener('touchend', function(e) {
+          var dx = e.changedTouches[0].clientX - touchStartX;
+          var dy = e.changedTouches[0].clientY - touchStartY;
+          var absDx = Math.abs(dx), absDy = Math.abs(dy);
+          if (Math.max(absDx, absDy) < 20) {
+            // Tap = Space (attack)
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space', keyCode: 32, bubbles: true }));
+            document.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', code: 'Space', keyCode: 32, bubbles: true }));
+            return;
+          }
+          // Swipe = arrow keys (movement)
+          var key, code, kc;
+          if (absDx > absDy) {
+            key = dx > 0 ? 'ArrowRight' : 'ArrowLeft';
+            code = key; kc = key === 'ArrowRight' ? 39 : 37;
+          } else {
+            key = dy > 0 ? 'ArrowDown' : 'ArrowUp';
+            code = key; kc = key === 'ArrowDown' ? 40 : 38;
+          }
+          document.dispatchEvent(new KeyboardEvent('keydown', { key: key, code: code, keyCode: kc, bubbles: true }));
+          document.dispatchEvent(new KeyboardEvent('keyup', { key: key, code: code, keyCode: kc, bubbles: true }));
+        }, { passive: true });
+      })();
+    </script>
+  </body>
+</html>

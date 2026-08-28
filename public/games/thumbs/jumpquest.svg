@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180">
+  <rect width="320" height="180" fill="#071007"/>
+  <rect x="5" y="5" width="310" height="170" fill="none" stroke="#6ee06e" stroke-width="3"/>
+  <rect x="5" y="5" width="310" height="170" fill="#6ee06e" opacity="0.06"/>
+  <text x="160" y="86" text-anchor="middle" font-size="52">🏃</text>
+  <text x="160" y="136" text-anchor="middle" font-family="'Courier New', monospace" font-weight="bold" font-size="24" fill="#6ee06e" letter-spacing="2">JUMP QUEST</text>
+  <text x="160" y="160" text-anchor="middle" font-family="'Courier New', monospace" font-size="10" fill="#7a8a7a" letter-spacing="3">TREELIFE ARCADE</text>
+</svg>
