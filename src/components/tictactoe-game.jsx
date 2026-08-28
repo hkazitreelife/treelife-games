@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 
 /* ── Constants ──────────────────────────────────────────────── */
 const LINES = [
@@ -106,6 +107,7 @@ export default function TictactoeGame({
   gameReadyData,
 }) {
   const multiplayerMode = Boolean(multiplayerCode);
+  const router = useRouter();
 
   // Game state
   const [grid, setGrid] = useState(Array(9).fill(null));
@@ -271,7 +273,7 @@ export default function TictactoeGame({
       }
       setOpponentDisconnected(false);
       setDisconnectSecondsLeft(0);
-      setGameOver(true);
+      setRoundOver(true);
       setOverlayTitle("MATCH ABANDONED");
       setOverlaySub(data?.reason || "Opponent disconnected for too long");
       setShowOverlay(true);
@@ -484,7 +486,7 @@ export default function TictactoeGame({
                   });
                   const { code, url } = await res.json();
                   // Navigate to the room join page
-                  window.location.href = url;
+                  router.push(url);
                 } catch {}
               }}
             >
@@ -499,13 +501,13 @@ export default function TictactoeGame({
               placeholder="ROOM CODE"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 6))}
-              onKeyDown={(e) => { if (e.key === "Enter" && joinCode.length === 6) window.location.href = `/play/tictactoe/${joinCode}`; }}
+              onKeyDown={(e) => { if (e.key === "Enter" && joinCode.length === 6) router.push(`/play/tictactoe/${joinCode}`); }}
               style={{ width: 180, textAlign: "center", marginBottom: 8, display: "block", margin: "0 auto 8px" }}
             />
             <button
               className="ttt-btn ttt-btn--alt"
               disabled={joinCode.length !== 6}
-              onClick={() => { window.location.href = `/play/tictactoe/${joinCode}`; }}
+              onClick={() => { router.push(`/play/tictactoe/${joinCode}`); }}
               style={{ opacity: joinCode.length === 6 ? 1 : 0.4 }}
             >
               JOIN BY CODE

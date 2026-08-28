@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { RotateCcw, Crown, AlertCircle, Clock, History, Flag } from "lucide-react";
 import { Chess } from "chess.js";
 
@@ -27,6 +28,7 @@ export default function ChessGame({
   gameReadyData,
 }) {
   const multiplayerMode = Boolean(multiplayerCode);
+  const router = useRouter();
   const [landingPhase, setLandingPhase] = useState(
     multiplayerMode ? ((gameReadyData?.players?.length) ? null : "waiting") : null
   );
@@ -606,7 +608,7 @@ export default function ChessGame({
                     body: JSON.stringify({ gameType: "chess" }),
                   });
                   const { code, url } = await res.json();
-                  window.location.href = url;
+                  router.push(url);
                 } catch {}
               }}
             >
@@ -620,13 +622,13 @@ export default function ChessGame({
               placeholder="ROOM CODE"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 6))}
-              onKeyDown={(e) => { if (e.key === "Enter" && joinCode.length === 6) window.location.href = `/play/chess/${joinCode}`; }}
+              onKeyDown={(e) => { if (e.key === "Enter" && joinCode.length === 6) router.push(`/play/chess/${joinCode}`); }}
               style={{ width: 180, textAlign: "center", marginBottom: 8, display: "block", margin: "0 auto 8px" }}
             />
             <button
               className="chess-btn"
               disabled={joinCode.length !== 6}
-              onClick={() => { window.location.href = `/play/chess/${joinCode}`; }}
+              onClick={() => { router.push(`/play/chess/${joinCode}`); }}
               style={{ opacity: joinCode.length === 6 ? 1 : 0.4, width: "auto", padding: "10px 24px" }}
             >
               JOIN BY CODE

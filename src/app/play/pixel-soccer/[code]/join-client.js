@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 import { useState, useEffect, useCallback } from "react";
 import { io } from "socket.io-client";
@@ -71,9 +72,9 @@ export default function SoccerJoinClient({ code }) {
         <div className="join-panel">
           <div className="join-title">ROOM NOT FOUND OR FULL</div>
           <div className="join-sub">{errorMsg}</div>
-          <a href="/" className="join-btn">
+          <Link href="/" className="join-btn">
             BACK TO ARCADE
-          </a>
+          </Link>
         </div>
       </div>
     );
