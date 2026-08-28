@@ -2,18 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 
-const MOCK_BOARD = [
-  { name: "RAHUL", score: 2940 },
-  { name: "GARIMA", score: 2510 },
-  { name: "ISHAN", score: 2140 },
-  { name: "PRIYA", score: 1870 },
-  { name: "ARJUN", score: 1560 },
-  { name: "NEHA", score: 1320 },
-  { name: "VIKRAM", score: 980 },
-  { name: "SONIA", score: 740 },
-  { name: "DEEPAK", score: 510 },
-  { name: "MEERA", score: 300 },
-];
+const EMPTY_BOARD = [];
 
 function dedupeName(name, existing) {
   let candidate = name;
@@ -36,8 +25,9 @@ export default function Home() {
   const [userName, setUserName] = useState(null);
   const [loginValue, setLoginValue] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [board, setBoard] = useState(MOCK_BOARD);
+  const [board, setBoard] = useState(EMPTY_BOARD);
   const [lbOpen, setLbOpen] = useState(false);
+  const [lbLoading, setLbLoading] = useState(false);
   const [botActive, setBotActive] = useState(false);
   const [activeGame, setActiveGame] = useState(null);
   const [cssFullscreen, setCssFullscreen] = useState(false);
@@ -273,7 +263,23 @@ export default function Home() {
   const active = GAMES.find((g) => g.id === activeGame) || null;
   const closeGame = () => { stopBot(); setCssFullscreen(false); setActiveGame(null); };
 
-  useEffect(() => { if (!lbOpen) return; const id = setInterval(() => setBoard((p) => [...p]), 5000); return () => clearInterval(id); }, [lbOpen]);
+  // Fetch leaderboard data from the API when opened, then poll every 5s.
+  useEffect(() => {
+    if (!lbOpen) return;
+    let cancelled = false;
+    const fetchBoard = async () => {
+      setLbLoading(true);
+      try {
+        const res = await fetch("/api/scores");
+        const data = await res.json();
+        if (!cancelled && data.board) setBoard(data.board);
+      } catch (_) {}
+      if (!cancelled) setLbLoading(false);
+    };
+    fetchBoard();
+    const id = setInterval(fetchBoard, 5000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [lbOpen]);
   useEffect(() => () => stopBot(), []);
 
   const userRank = userName ? board.findIndex((e) => e.name === userName) + 1 : 0;
@@ -362,7 +368,8 @@ export default function Home() {
           <div className="lb-panel">
             <div className="lb-title">== HIGH SCORES ==</div>
             <div className="lb-list">
-              {top10.length === 0 && <div className="lb-empty">NO SCORES YET</div>}
+              {lbLoading && top10.length === 0 && <div className="lb-empty">LOADING...</div>}
+              {!lbLoading && top10.length === 0 && <div className="lb-empty">NO SCORES YET</div>}
               {top10.map((entry, i) => <LbRow key={entry.name} entry={entry} i={i} />)}
             </div>
             {userName && !userInTop10 && userRank > 0 && (
