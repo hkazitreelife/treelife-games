@@ -26,6 +26,28 @@
   .btn.alt:hover { background: #3B5DC9; color: #fff; }
   .hint { font-size: clamp(8px, 1.4vw, 10px); line-height: 1.9; opacity: .85; max-width: 92%; }
   .hint .r { color: #ff8a8a; } .hint .b { color: #9ec1ff; }
+  /* ── Mobile on-screen controls ── */
+  .mobile-controls { display: none; position: absolute; bottom: 0; left: 0; right: 0;
+    height: 120px; z-index: 10; pointer-events: none; }
+  .joystick-zone { position: absolute; bottom: 10px; left: 10px; width: 110px; height: 110px;
+    pointer-events: auto; touch-action: none; }
+  .joystick-base { width: 110px; height: 110px; border-radius: 50%;
+    background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.2); }
+  .joystick-knob { position: absolute; width: 44px; height: 44px; border-radius: 50%;
+    background: rgba(247,226,107,0.5); border: 2px solid #F7E26B;
+    top: 33px; left: 33px; pointer-events: none; transition: none; }
+  .kick-btn-zone { position: absolute; bottom: 15px; right: 15px; width: 80px; height: 80px;
+    pointer-events: auto; touch-action: none; }
+  .kick-btn { width: 80px; height: 80px; border-radius: 50%; font-family: inherit;
+    font-size: 11px; font-weight: bold; color: #F7E26B; cursor: pointer;
+    background: rgba(247,226,107,0.15); border: 3px solid #F7E26B;
+    display: flex; align-items: center; justify-content: center;
+    user-select: none; -webkit-user-select: none; }
+  .kick-btn.pressed { background: rgba(247,226,107,0.45); transform: scale(0.93); }
+  @media (hover: none) and (pointer: coarse) {
+    .mobile-controls { display: block; }
+  }
+
   .footnote { font-size: clamp(7px, 1.2vw, 9px); opacity: .55; }
 </style>
 <script src="/socket.io/socket.io.js"></script>
@@ -35,6 +57,17 @@
   <h1>PIXEL SOCCER</h1>
   <div class="stage">
     <canvas id="game" width="320" height="240"></canvas>
+    <div class="mobile-controls" id="mobile-controls">
+      <div class="joystick-zone" id="joystick-zone">
+        <div class="joystick-base">
+          <div class="joystick-knob" id="joystick-knob"></div>
+        </div>
+      </div>
+      <div class="kick-btn-zone" id="kick-btn-zone">
+        <div class="kick-btn" id="kick-btn">KICK</div>
+      </div>
+    </div>
+
 
     <div id="menu" class="overlay">
       <div class="big">CHOOSE MODE:</div>
@@ -48,7 +81,7 @@
         <button class="btn alt" id="btn-join" style="padding:6px 10px;">JOIN</button>
       </div>
       <div class="hint">VS BOT: WASD MOVE &middot; SPACE KICK<br>
-        MOBILE: DRAG TO MOVE &middot; TAP TO KICK<br><br>
+        MOBILE: JOYSTICK MOVE &middot; KICK BUTTON<br><br>
         MULTIPLAYER: SHARE THE LINK WITH A FRIEND
       </div>
     </div>

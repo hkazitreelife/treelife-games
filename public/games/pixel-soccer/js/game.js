@@ -66,6 +66,83 @@
   var touchStart = null;
   var touchDir   = { x: 0, y: 0 };
   var tapFrame   = 0;            // frame countdown — if >0, emit a kick
+
+  /* ── mobile on-screen controls ──────────────────────────── */
+  var joystickKnob = document.getElementById("joystick-knob");
+  var joystickZone = document.getElementById("joystick-zone");
+  var kickBtn      = document.getElementById("kick-btn");
+  var joyDir       = { x: 0, y: 0 };   // normalized direction from joystick
+  var joyActive    = false;
+  var joyCenter    = null;               // {x, y} center of joystick zone
+  var kickBtnDown  = false;              // true while kick button is held
+  var JOY_RADIUS   = 35;                // max distance knob can move from center
+  var isMobile     = !!('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
+  function initJoystick() {
+    if (!joystickZone || !kickBtn) return;
+    var rect = joystickZone.getBoundingClientRect();
+    joyCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+
+    joystickZone.addEventListener("touchstart", function(e) {
+      e.preventDefault(); e.stopPropagation();
+      joyActive = true;
+      var r = joystickZone.getBoundingClientRect();
+      joyCenter = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      updateJoystick(e.touches[0]);
+    }, { passive: false });
+
+    joystickZone.addEventListener("touchmove", function(e) {
+      e.preventDefault(); e.stopPropagation();
+      if (joyActive) updateJoystick(e.touches[0]);
+    }, { passive: false });
+
+    joystickZone.addEventListener("touchend", function(e) {
+      e.preventDefault(); e.stopPropagation();
+      joyActive = false; joyDir.x = 0; joyDir.y = 0;
+      joystickKnob.style.transform = "translate(0px, 0px)";
+    }, { passive: false });
+
+    joystickZone.addEventListener("touchcancel", function(e) {
+      joyActive = false; joyDir.x = 0; joyDir.y = 0;
+      joystickKnob.style.transform = "translate(0px, 0px)";
+    }, { passive: false });
+
+    function updateJoystick(touch) {
+      if (!joyCenter) { var r = joystickZone.getBoundingClientRect(); joyCenter = { x: r.left + r.width/2, y: r.top + r.height/2 }; }
+      var dx = touch.clientX - joyCenter.x;
+      var dy = touch.clientY - joyCenter.y;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > JOY_RADIUS) { dx = dx / dist * JOY_RADIUS; dy = dy / dist * JOY_RADIUS; dist = JOY_RADIUS; }
+      joystickKnob.style.transform = "translate(" + dx + "px, " + dy + "px)";
+      if (dist > 5) {
+        var norm = dist || 1;
+        joyDir.x = dx / norm;
+        joyDir.y = dy / norm;
+      } else {
+        joyDir.x = 0; joyDir.y = 0;
+      }
+    }
+
+    /* Kick button */
+    kickBtn.addEventListener("touchstart", function(e) {
+      e.preventDefault(); e.stopPropagation();
+      kickBtnDown = true;
+      kickBtn.classList.add("pressed");
+      tapFrame = 6;  // trigger kick for this frame
+    }, { passive: false });
+
+    kickBtn.addEventListener("touchend", function(e) {
+      e.preventDefault(); e.stopPropagation();
+      kickBtnDown = false;
+      kickBtn.classList.remove("pressed");
+    }, { passive: false });
+
+    kickBtn.addEventListener("touchcancel", function(e) {
+      kickBtnDown = false;
+      kickBtn.classList.remove("pressed");
+    }, { passive: false });
+  }
+  if (isMobile) initJoystick();
   canvas.addEventListener("touchstart", onTouchStart, { passive: false });
   canvas.addEventListener("touchmove",  onTouchMove,  { passive: false });
   canvas.addEventListener("touchend",   onTouchEnd,   { passive: false });
@@ -397,8 +474,10 @@
       if (keys["KeyA"] || keys["ArrowLeft"])   mx = -1;
       if (keys["KeyD"] || keys["ArrowRight"])  mx =  1;
     }
-    /* touch override for P1 in bot/cpu mode */
-    if (touchDir.x !== 0 || touchDir.y !== 0) {
+    /* touch / mobile joystick override for P1 */
+    if (joyDir.x !== 0 || joyDir.y !== 0) {
+      mx = joyDir.x; my = joyDir.y;
+    } else if (touchDir.x !== 0 || touchDir.y !== 0) {
       mx = touchDir.x; my = touchDir.y;
     }
     var len = Math.sqrt(mx * mx + my * my) || 1;
@@ -410,7 +489,8 @@
 
   function kickInput1() {
     if (botMode) return aiWantsKick1;
-    if (tapFrame > 0) return true;   // touch tap
+    if (tapFrame > 0) return true;   // touch tap or kick button
+    if (kickBtnDown) return true;    // mobile kick button held
     return !!keys["Space"];
   }
 
@@ -700,8 +780,9 @@
         if (keys["KeyS"] || keys["ArrowDown"])  my =  1;
         if (keys["KeyA"] || keys["ArrowLeft"])   mx = -1;
         if (keys["KeyD"] || keys["ArrowRight"])  mx =  1;
-        if (touchDir.x !== 0 || touchDir.y !== 0) { mx = touchDir.x; my = touchDir.y; }
-        var kickDown = (tapFrame > 0) || !!keys["Space"];
+        if (joyDir.x !== 0 || joyDir.y !== 0) { mx = joyDir.x; my = joyDir.y; }
+        else if (touchDir.x !== 0 || touchDir.y !== 0) { mx = touchDir.x; my = touchDir.y; }
+        var kickDown = (tapFrame > 0) || kickBtnDown || !!keys["Space"];
         mpSocket.emit("player-input", { code: mpCode, dx: mx, dy: my, kick: kickDown });
       }
     }
