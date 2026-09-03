@@ -59,8 +59,19 @@
 
   /* ── input state ────────────────────────────────────────────── */
   var keys = {};
-  window.addEventListener("keydown", function (e) { keys[e.code] = true;  e.preventDefault(); });
-  window.addEventListener("keyup",   function (e) { keys[e.code] = false; e.preventDefault(); });
+  function onKeyDown(e) { keys[e.code] = true;  e.preventDefault(); }
+  function onKeyUp(e)   { keys[e.code] = false; e.preventDefault(); }
+  window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("keyup",   onKeyUp);
+
+  /* Also listen on parent window when inside an iframe — so keyboard events
+     reach the game even when the iframe itself doesn't have focus. */
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.addEventListener("keydown", function (e) { keys[e.code] = true; });
+      window.parent.addEventListener("keyup",   function (e) { keys[e.code] = false; });
+    }
+  } catch (_crossOrigin) { /* same-origin only */ }
 
   /* touch state */
   var touchStart = null;

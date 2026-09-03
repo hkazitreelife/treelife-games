@@ -45,6 +45,36 @@ export default function Home() {
   const activeGameRef = useRef(null);
   useEffect(() => { activeGameRef.current = activeGame; }, [activeGame]);
 
+  /* Auto-focus iframe when a game opens so keyboard events reach it */
+  useEffect(() => {
+    if (activeGame) {
+      const g = GAMES.find(x => x.id === activeGame);
+      if (g && g.ref && g.ref.current) {
+        requestAnimationFrame(() => g.ref.current.focus());
+      }
+    }
+  }, [activeGame]);
+
+  /* Forward keyboard events to the active game iframe so Space/keys always work */
+  useEffect(() => {
+    if (!activeGame) return;
+    const g = GAMES.find(x => x.id === activeGame);
+    if (!g || !g.ref) return;
+    function fwd(e) {
+      const iframe = g.ref.current;
+      if (!iframe || !iframe.contentWindow) return;
+      try {
+        iframe.contentWindow.dispatchEvent(new KeyboardEvent(e.type, {
+          key: e.key, code: e.code, keyCode: e.keyCode,
+          bubbles: true, cancelable: true
+        }));
+      } catch (_err) { /* cross-origin guard */ }
+    }
+    window.addEventListener('keydown', fwd);
+    window.addEventListener('keyup', fwd);
+    return () => { window.removeEventListener('keydown', fwd); window.removeEventListener('keyup', fwd); };
+  }, [activeGame]);
+
   const handleLogin = () => {
     const raw = loginValue.trim().replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
     if (!raw) { setLoginError("TYPE SOMETHING FIRST"); return; }
@@ -341,7 +371,7 @@ export default function Home() {
       {active && (
         <div className={"play-overlay" + (cssFullscreen ? " css-fullscreen" : "")}>
           <div className="play-backdrop" onClick={closeGame} />
-          <div className="play-panel">
+          <div className="play-panel" onMouseDown={() => { if (active && active.ref && active.ref.current) active.ref.current.focus(); }}>
             <div className="play-head">
               <span className="play-title">{active.title}</span>
               <div className="surface-controls">
