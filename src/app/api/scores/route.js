@@ -1,8 +1,20 @@
 import { NextResponse } from "next/server";
 import { getPool, ensureSchema } from "@/lib/db";
+import { rooms } from "@/lib/socket-server";
+import { auth } from "@/lib/auth";
 
 export async function POST(request) {
   await ensureSchema();
+
+  // Get authenticated session
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json(
+      { error: "Authentication required. Please sign in with Google." },
+      { status: 401 }
+    );
+  }
+
   let body;
   try {
     body = await request.json();
@@ -12,7 +24,11 @@ export async function POST(request) {
       { status: 400 }
     );
   }
-  const { name, gameType, score, opponentType } = body;
+  const { gameType, score, opponentType } = body;
+
+  // Override name and user_id with authenticated session data (prevent spoofing)
+  const name = session.user.name || "PLAYER";
+  const userId = session.user.id;
 
   if (!name || !gameType || typeof score !== "number") {
     return NextResponse.json(
@@ -50,15 +66,52 @@ export async function POST(request) {
   try {
     const pool = getPool();
     await pool.query(
-      `INSERT INTO treelife_scores (name, game_id, score, opponent_type)
-       VALUES ($1, $2, $3, $4)`,
+      `INSERT INTO treelife_scores (name, game_id, score, opponent_type, user_id)
+       VALUES ($1, $2, $3, $4, $5)`,
       [
         String(name).slice(0, 20),
         String(gameType).slice(0, 30),
         Math.round(score),
         opponentType,
+        userId,
       ]
     );
+
+    // Emit leaderboard update to all connected clients via Socket.IO
+    try {
+      const { getPool: p } = await import("@/lib/db");
+      const pool2 = p();
+      const { rows } = await pool2.query(
+        `WITH user_best AS (
+           SELECT name, game_id, MAX(score) AS best
+           FROM treelife_scores GROUP BY name, game_id
+         ),
+         game_max AS (
+           SELECT game_id, MAX(score) AS max_score
+           FROM treelife_scores GROUP BY game_id
+         ),
+         normalized AS (
+           SELECT ub.name, ub.game_id,
+             ROUND((ub.best::numeric / gm.max_score) * 100, 1) AS normalized_score
+           FROM user_best ub
+           JOIN game_max gm ON ub.game_id = gm.game_id
+           WHERE gm.max_score > 0
+         )
+         SELECT name, ROUND(SUM(normalized_score), 1) AS score
+         FROM normalized
+         GROUP BY name
+         ORDER BY score DESC
+         LIMIT 10`
+      );
+      // Broadcast to all connected sockets
+      const io = globalThis.__treelifeIo;
+      if (io) {
+        io.emit("leaderboard-update", { board: rows });
+      }
+    } catch (emitErr) {
+      console.error("[scores] Failed to emit leaderboard update:", emitErr.message);
+    }
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[scores] POST failed:", err.message);
