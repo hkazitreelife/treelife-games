@@ -281,12 +281,12 @@ export default function Home() {
 
   const GAMES = [
     { id: "flappy", title: "FLAPPY BIRD", desc: "Tap to flap through the pipes. One click is all it takes — how far can you fly?", src: "/game/game.html", thumb: "/games/thumbs/flappy.svg", mp: false, bot: true, ref: flappyRef, restart: restartFlappy },
-    { id: "2048", title: "2048", desc: "Slide and merge numbered tiles. Reach 2048 before the board fills up.", src: "/games/2048/index.html", thumb: "/games/thumbs/2048.svg", mp: false, ref: game2048Ref, restart: restart2048 },
+    { id: "2048", title: "2048", square: true, desc: "Slide and merge numbered tiles. Reach 2048 before the board fills up.", src: "/games/2048/index.html", thumb: "/games/thumbs/2048.svg", mp: false, ref: game2048Ref, restart: restart2048 },
     { id: "survivor", title: "PIXEL SURVIVOR", desc: "Fight off endless waves of pixel enemies and survive as long as you can.", src: "/games/survivor/index.html", thumb: "/games/thumbs/survivor.svg", mp: false, ref: survivorRef, restart: restartSurvivor },
     { id: "pacman", title: "PAC-MAN", desc: "Munch every dot in the maze — but don't get caught by the ghosts.", src: "/games/pacman/index.html", thumb: "/games/thumbs/pacman.svg", mp: false, ref: pacmanRef, restart: restartPacman },
     { id: "jumpquest", title: "JUMP QUEST", desc: "Run and jump through tricky platform levels all the way to the flag.", src: "/games/jumpquest", thumb: "/games/thumbs/jumpquest.svg", mp: false, ref: jumpquestRef, restart: restartJumpquest },
     { id: "tetris", title: "TETRIS", desc: "Stack falling blocks and clear lines for big scores.", src: "/games/tetris/index.html", thumb: "/games/thumbs/tetris.svg", mp: false, ref: tetrisRef, restart: restartTetris },
-    { id: "sokoban", title: "SOKOBAN", desc: "Push every crate onto a goal spot. You can push, but you can't pull.", src: "/games/sokoban/index.html", thumb: "/games/thumbs/sokoban.svg", mp: false, ref: sokobanRef, restart: restartSokoban },
+    { id: "sokoban", title: "SOKOBAN", square: true, desc: "Push every crate onto a goal spot. You can push, but you can't pull.", src: "/games/sokoban/index.html", thumb: "/games/thumbs/sokoban.svg", mp: false, ref: sokobanRef, restart: restartSokoban },
     { id: "tictactoe", title: "TIC-TAC-TOE ∞", desc: "The classic duel that never ends — three in a row on a sliding board.", src: "/tictactoe", thumb: "/games/thumbs/tictactoe.svg", mp: true, bot: true, ref: tictactoeRef, restart: restartTictactoe },
     { id: "chess", title: "PIXEL CHESS", desc: "Full chess with timers, check, checkmate and draws — two players, one screen.", src: "/chess", thumb: "/games/thumbs/chess.svg", mp: true, bot: true, ref: chessRef, restart: restartChess },
     { id: "pixel-soccer", title: "PIXEL SOCCER", desc: "Retro 2-minute soccer — play vs the CPU bot or grab a friend for local 2-player.", src: "/games/pixel-soccer/index.html", thumb: "/games/thumbs/pixel-soccer.svg", mp: true, bot: true, ref: pixelSoccerRef, restart: restartPixelSoccer },
@@ -385,7 +385,7 @@ export default function Home() {
               </div>
             </div>
             {cssFullscreen && <button className="btn btn-quiet fullscreen-exit-btn" onClick={exitFullscreen}>✕ EXIT</button>}
-            <div className="canvas-frame">
+            <div className="canvas-frame" data-square={active.square || undefined}>
               <iframe ref={active.ref} src={active.src} frameBorder="0" scrolling="no" title={active.title} className="game-iframe" allow="fullscreen" />
             </div>
           </div>

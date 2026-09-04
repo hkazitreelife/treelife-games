@@ -162,11 +162,18 @@ html, body {
   overflow: hidden;
   position: relative;
 }
+/* Square games like 2048: override to 1:1 */
+.canvas-frame[data-square] {
+  aspect-ratio: 1 / 1;
+}
 @media (max-width: 640px) {
   .canvas-frame {
     aspect-ratio: unset;
-    height: 60vh;
+    height: 65vh;
     max-height: none;
+  }
+  .canvas-frame[data-square] {
+    height: min(65vh, 80vw);
   }
 }
 .game-iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; display: block; }
