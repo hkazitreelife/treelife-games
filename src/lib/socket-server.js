@@ -4,7 +4,6 @@
 
 const { Chess } = require("chess.js");
 const soccerEngine = require("./pixel-soccer-engine");
-const { decode } = require("next-auth/jwt");
 
 /* ── room code generator ─────────────────────────────────────── */
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I
@@ -172,49 +171,10 @@ function applyTttMove(room, player, cellIndex) {
 
 /* ── Socket event wiring ─────────────────────────────────────── */
 function wireEvents(io) {
-  // Middleware: authenticate socket via HTTP-only NextAuth session cookie
-  io.use(async (socket, next) => {
-    const cookieHeader = socket.handshake.headers.cookie;
-    if (!cookieHeader) {
-      // Allow anonymous connections for backward compatibility
-      socket.user = null;
-      return next();
-    }
 
-    // Parse the authjs.session-token cookie
-    const match = cookieHeader.match(/(?:^|;\s*)authjs\.session-token=([^;]*)/);
-    if (!match) {
-      socket.user = null;
-      return next();
-    }
-
-    try {
-      const payload = await decode({
-        token: match[1],
-        secret: process.env.NEXTAUTH_SECRET,
-      });
-
-      if (payload && payload.sub) {
-        // Verify user exists in our database
-        const { getPool } = require("./db");
-        const pool = getPool();
-        const { rows } = await pool.query(
-          "SELECT id, name, email, image FROM treelife_users WHERE id = $1",
-          [payload.sub]
-        );
-        socket.user = rows.length > 0 ? rows[0] : null;
-      } else {
-        socket.user = null;
-      }
-    } catch (err) {
-      console.error("[socket] auth error:", err.message);
-      socket.user = null;
-    }
-    next();
-  });
 
   io.on("connection", (socket) => {
-    console.log(`[socket] connected: ${socket.id}${socket.user ? " (auth: " + socket.user.name + ")" : " (anon)"}`);
+    console.log(`[socket] connected: ${socket.id}`);
 
     /* ── join-room ── */
     socket.on("join-room", ({ code, playerName }) => {

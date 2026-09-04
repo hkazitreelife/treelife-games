@@ -1,19 +1,9 @@
 import { NextResponse } from "next/server";
 import { getPool, ensureSchema } from "@/lib/db";
 import { rooms } from "@/lib/socket-server";
-import { auth } from "@/lib/auth";
 
 export async function POST(request) {
   await ensureSchema();
-
-  // Get authenticated session
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json(
-      { error: "Authentication required. Please sign in with Google." },
-      { status: 401 }
-    );
-  }
 
   let body;
   try {
@@ -24,11 +14,7 @@ export async function POST(request) {
       { status: 400 }
     );
   }
-  const { gameType, score, opponentType } = body;
-
-  // Override name and user_id with authenticated session data (prevent spoofing)
-  const name = session.user.name || "PLAYER";
-  const userId = session.user.id;
+  const { name, gameType, score, opponentType } = body;
 
   if (!name || !gameType || typeof score !== "number") {
     return NextResponse.json(
@@ -66,18 +52,16 @@ export async function POST(request) {
   try {
     const pool = getPool();
     await pool.query(
-      `INSERT INTO treelife_scores (name, game_id, score, opponent_type, user_id)
-       VALUES ($1, $2, $3, $4, $5)`,
+      `INSERT INTO treelife_scores (name, game_id, score, opponent_type)
+       VALUES ($1, $2, $3, $4)`,
       [
         String(name).slice(0, 20),
         String(gameType).slice(0, 30),
         Math.round(score),
         opponentType,
-        userId,
       ]
     );
 
-    // Emit leaderboard update to all connected clients via Socket.IO
     try {
       const { getPool: p } = await import("@/lib/db");
       const pool2 = p();
@@ -103,13 +87,10 @@ export async function POST(request) {
          ORDER BY score DESC
          LIMIT 10`
       );
-      // Broadcast to all connected sockets
       const io = globalThis.__treelifeIo;
-      if (io) {
-        io.emit("leaderboard-update", { board: rows });
-      }
+      if (io) io.emit("leaderboard-update", { board: rows });
     } catch (emitErr) {
-      console.error("[scores] Failed to emit leaderboard update:", emitErr.message);
+      console.error("[scores] emit failed:", emitErr.message);
     }
 
     return NextResponse.json({ ok: true });
@@ -149,6 +130,5 @@ export async function GET() {
      ORDER BY score DESC
      LIMIT 10`
   );
-
   return NextResponse.json({ board: rows });
 }

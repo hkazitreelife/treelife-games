@@ -26,8 +26,6 @@ export default function Home() {
   const [userName, setUserName] = useState(null);
   const [loginValue, setLoginValue] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [session, setSession] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
   const [board, setBoard] = useState(EMPTY_BOARD);
   const [lbOpen, setLbOpen] = useState(false);
   const [lbLoading, setLbLoading] = useState(false);
@@ -47,21 +45,6 @@ export default function Home() {
   const pixelSoccerRef = useRef(null);
   const activeGameRef = useRef(null);
   useEffect(() => { activeGameRef.current = activeGame; }, [activeGame]);
-
-  /* Check for authenticated session on mount */
-  useEffect(() => {
-    fetch("/api/auth/session")
-      .then(r => r.json())
-      .then(data => {
-        if (data?.user) {
-          setSession(data.user);
-          setUserName(data.user.name || "PLAYER");
-          try { localStorage.setItem("treelife-name", data.user.name || "PLAYER"); } catch (_e) {}
-        }
-        setAuthLoading(false);
-      })
-      .catch(() => setAuthLoading(false));
-  }, []);
 
   /* Auto-focus iframe when a game opens so keyboard events reach it */
   useEffect(() => {
@@ -147,7 +130,7 @@ export default function Home() {
     const onScore = (e) => {
       const d = e.data;
       if (!d || d.type !== "arcade-score" || !d.game || typeof d.score !== "number") return;
-      const name = session?.name || (typeof localStorage !== "undefined" && localStorage.getItem("treelife-name")) || "PLAYER";
+      const name = (typeof localStorage !== "undefined" && localStorage.getItem("treelife-name")) || "PLAYER";
       fetch("/api/scores", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -156,7 +139,7 @@ export default function Home() {
     };
     window.addEventListener("message", onScore);
     return () => window.removeEventListener("message", onScore);
-  }, [session]);
+  }, []);
 
   // ── Tetris score detection (FRAGILE) ──────────────────────────────
   // Tetris is a minified Parcel bundle with no exposed game-over hook.
@@ -335,29 +318,20 @@ export default function Home() {
   const top10 = board.slice(0, 10);
   const userInTop10 = userRank > 0 && userRank <= 10;
 
-  if (authLoading) {
-    return (
-      <div className="login-screen">
-        <div className="login-label">LOADING...</div>
-      </div>
-    );
-  }
-
   if (!userName) {
     return (
-      <div className="login-screen">
+      <form className="login-screen" onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>
         <div className="login-sprite" style={{ display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-pixel)", fontSize: 24, color: "var(--px-green)" }}>♟</div>
-        <div className="login-label">WELCOME TO TREELIFE ARCADE</div>
-        <button
-          className="login-start-btn google-signin-btn"
-          onClick={() => window.location.href = "/api/auth/signin/google"}
-        >
-          Sign in with Google
-        </button>
-        <div className="login-subtitle" style={{ marginTop: "1rem", fontSize: "0.7rem", color: "var(--px-dim)", textAlign: "center" }}>
-          Sign in to save your scores and appear on the leaderboard
+        <div className="login-label">ENTER YOUR NAME</div>
+        <div className="pixel-input-wrap">
+          <input className="pixel-input" maxLength={12} autoFocus value={loginValue}
+            onChange={(e) => { setLoginError(""); setLoginValue(e.target.value.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12)); }}
+            />
+          <span className="pixel-cursor" />
         </div>
-      </div>
+        <div className="pixel-error">{loginError}</div>
+        <button className="login-start-btn" type="submit" formNoValidate>&gt; START &lt;</button>
+      </form>
     );
   }
 
@@ -378,16 +352,7 @@ export default function Home() {
 
   return (
     <div className="app-shell">
-      <header className="topbar">
-        <div className="brand"><span className="brand-title arcade-wordmark">TREELIFE ARCADE</span></div>
-        {session && (
-          <div className="user-menu" style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            {session.image && <img src={session.image} alt="" style={{ width: 24, height: 24, borderRadius: "50%" }} />}
-            <span style={{ fontSize: "0.7rem", color: "var(--px-dim)" }}>{session.name}</span>
-            <button className="btn btn-quiet" onClick={() => window.location.href = "/api/auth/signout"} style={{ fontSize: "0.6rem" }}>SIGN OUT</button>
-          </div>
-        )}
-      </header>
+<header className="topbar"><div className="brand"><span className="brand-title arcade-wordmark">TREELIFE ARCADE</span></div></header>
       <main className="arcade-grid">
         {GAMES.map((g) => (
           <section key={g.id} className={"game-card" + (g.mp ? " game-card--mp" : "")} onClick={() => setActiveGame(g.id)}>
